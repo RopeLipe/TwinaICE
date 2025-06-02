@@ -1,0 +1,25 @@
+[Unit]
+Description=TwinaOS Web Installer
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=installer
+WorkingDirectory=/opt/twinaos
+Environment=PYTHONPATH=/opt/twinaos
+ExecStart=/usr/bin/python3 /opt/twinaos/app.py
+Restart=always
+RestartSec=3
+StandardOutput=journal
+StandardError=journal
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/twinaos /tmp /var/log
+
+[Install]
+WantedBy=multi-user.target

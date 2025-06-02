@@ -1,0 +1,21 @@
+[Plymouth Theme]
+Name=TwinaOS
+Description=TwinaOS Boot Splash
+ModuleName=two-step
+
+[two-step]
+ImageDir=/usr/share/plymouth/themes/twinaos
+DialogHorizontalAlignment=.5
+DialogVerticalAlignment=.382
+TitleHorizontalAlignment=.5
+TitleVerticalAlignment=.382
+HorizontalAlignment=.5
+VerticalAlignment=.5
+WatermarkHorizontalAlignment=.5
+WatermarkVerticalAlignment=.96
+TitleFontSize=16
+BackgroundStartColor=0x2563eb
+BackgroundEndColor=0x1d4ed8
+ProgressBarBackgroundColor=0x606060
+ProgressBarForegroundColor=0x70a0ff
+MessageBelowAnimation=true

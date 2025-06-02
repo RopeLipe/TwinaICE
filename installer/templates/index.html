@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TwinaOS Installer</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/installer.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div id="installer-container">
+        <!-- Header -->
+        <header class="installer-header">
+            <div class="logo">
+                <i class="fas fa-tablet-alt"></i>
+                <h1>TwinaOS</h1>
+            </div>
+            <div class="step-indicator">
+                <span id="current-step">Welcome</span>
+                <span id="step-counter">1 / 8</span>
+            </div>
+            <div class="debug-trigger" onclick="toggleDebug()">
+                <i class="fas fa-bug"></i>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="installer-main">
+            <!-- Welcome Step -->
+            <div id="step-welcome" class="step active">
+                <div class="step-content">
+                    <div class="welcome-hero">
+                        <i class="fas fa-tablet-alt welcome-icon"></i>
+                        <h2>Welcome to TwinaOS</h2>
+                        <p>A modern, tablet-focused operating system built on Debian</p>
+                    </div>
+                    
+                    <div class="feature-grid">
+                        <div class="feature-item">
+                            <i class="fas fa-touch"></i>
+                            <h3>Touch-Optimized</h3>
+                            <p>Designed for tablets and touch devices</p>
+                        </div>
+                        <div class="feature-item">
+                            <i class="fas fa-shield-alt"></i>
+                            <h3>Secure</h3>
+                            <p>Built on stable Debian foundation</p>
+                        </div>
+                        <div class="feature-item">
+                            <i class="fas fa-rocket"></i>
+                            <h3>Fast</h3>
+                            <p>Optimized for performance</p>
+                        </div>
+                        <div class="feature-item">
+                            <i class="fas fa-cogs"></i>
+                            <h3>Customizable</h3>
+                            <p>Tailor to your needs</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Language Step -->
+            <div id="step-language" class="step">
+                <div class="step-content">
+                    <h2><i class="fas fa-globe"></i> Select Language</h2>
+                    <div class="language-grid">
+                        <div class="language-item" data-lang="en" data-name="English">
+                            <div class="flag">🇺🇸</div>
+                            <span>English</span>
+                        </div>
+                        <div class="language-item" data-lang="es" data-name="Español">
+                            <div class="flag">🇪🇸</div>
+                            <span>Español</span>
+                        </div>
+                        <div class="language-item" data-lang="fr" data-name="Français">
+                            <div class="flag">🇫🇷</div>
+                            <span>Français</span>
+                        </div>
+                        <div class="language-item" data-lang="de" data-name="Deutsch">
+                            <div class="flag">🇩🇪</div>
+                            <span>Deutsch</span>
+                        </div>
+                        <div class="language-item" data-lang="it" data-name="Italiano">
+                            <div class="flag">🇮🇹</div>
+                            <span>Italiano</span>
+                        </div>
+                        <div class="language-item" data-lang="pt" data-name="Português">
+                            <div class="flag">🇵🇹</div>
+                            <span>Português</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Keyboard Step -->
+            <div id="step-keyboard" class="step">
+                <div class="step-content">
+                    <h2><i class="fas fa-keyboard"></i> Keyboard Layout</h2>
+                    <div class="keyboard-selection">
+                        <div class="search-box">
+                            <i class="fas fa-search"></i>
+                            <input type="text" id="keyboard-search" placeholder="Search keyboard layouts...">
+                        </div>
+                        <div class="keyboard-grid" id="keyboard-list">
+                            <!-- Keyboard layouts will be populated by JavaScript -->
+                        </div>
+                        <div class="keyboard-test">
+                            <label for="keyboard-test-input">Test your keyboard:</label>
+                            <input type="text" id="keyboard-test-input" placeholder="Type here to test...">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Timezone Step -->
+            <div id="step-timezone" class="step">
+                <div class="step-content">
+                    <h2><i class="fas fa-clock"></i> Select Timezone</h2>
+                    <div class="timezone-selection">
+                        <div class="timezone-search">
+                            <i class="fas fa-search"></i>
+                            <input type="text" id="timezone-search" placeholder="Search timezones...">
+                        </div>
+                        <div class="timezone-display">
+                            <div class="current-time">
+                                <span id="current-time-display"></span>
+                            </div>
+                            <div class="timezone-info">
+                                <span id="selected-timezone">UTC</span>
+                            </div>
+                        </div>
+                        <div class="timezone-list" id="timezone-list">
+                            <!-- Timezone list will be populated by JavaScript -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Network Step -->
+            <div id="step-network" class="step">
+                <div class="step-content">
+                    <h2><i class="fas fa-wifi"></i> Network Configuration</h2>
+                    <div class="network-selection">
+                        <div class="network-tabs">
+                            <button class="tab-button active" data-tab="wifi">
+                                <i class="fas fa-wifi"></i> WiFi
+                            </button>
+                            <button class="tab-button" data-tab="ethernet">
+                                <i class="fas fa-ethernet"></i> Ethernet
+                            </button>
+                        </div>
+                        
+                        <div id="wifi-tab" class="network-tab active">
+                            <div class="wifi-controls">
+                                <button id="wifi-refresh" class="refresh-btn">
+                                    <i class="fas fa-sync-alt"></i> Refresh
+                                </button>
+                            </div>
+                            <div id="wifi-networks" class="wifi-list">
+                                <!-- WiFi networks will be populated by JavaScript -->
+                            </div>
+                        </div>
+                        
+                        <div id="ethernet-tab" class="network-tab">
+                            <div class="ethernet-status">
+                                <i class="fas fa-ethernet"></i>
+                                <span>Checking ethernet connection...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Disk Step -->
+            <div id="step-disk" class="step">
+                <div class="step-content">
+                    <h2><i class="fas fa-hdd"></i> Disk Selection</h2>
+                    <div class="disk-selection">
+                        <div class="disk-list" id="disk-list">
+                            <!-- Disk list will be populated by JavaScript -->
+                        </div>
+                        
+                        <div class="partitioning-options">
+                            <h3>Partitioning Options</h3>
+                            <div class="partition-mode">
+                                <label class="radio-option">
+                                    <input type="radio" name="partition-mode" value="auto" checked>
+                                    <span class="radio-custom"></span>
+                                    <div class="option-content">
+                                        <strong>Automatic Partitioning</strong>
+                                        <p>Recommended for most users. Automatically creates optimal partitions.</p>
+                                    </div>
+                                </label>
+                                <label class="radio-option">
+                                    <input type="radio" name="partition-mode" value="manual">
+                                    <span class="radio-custom"></span>
+                                    <div class="option-content">
+                                        <strong>Manual Partitioning</strong>
+                                        <p>Advanced users only. Manually configure disk partitions.</p>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- User Step -->
+            <div id="step-user" class="step">
+                <div class="step-content">
+                    <h2><i class="fas fa-user"></i> Create User Account</h2>
+                    <div class="user-form">
+                        <div class="form-group">
+                            <label for="full-name">Full Name</label>
+                            <input type="text" id="full-name" placeholder="Enter your full name">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="username">Username</label>
+                            <input type="text" id="username" placeholder="Enter username" pattern="[a-z][a-z0-9]*">
+                            <small>Lowercase letters and numbers only, starting with a letter</small>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="password">Password</label>
+                            <div class="password-input">
+                                <input type="password" id="password" placeholder="Enter password">
+                                <button type="button" class="password-toggle" onclick="togglePassword('password')">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="password-confirm">Confirm Password</label>
+                            <div class="password-input">
+                                <input type="password" id="password-confirm" placeholder="Confirm password">
+                                <button type="button" class="password-toggle" onclick="togglePassword('password-confirm')">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="hostname">Computer Name</label>
+                            <input type="text" id="hostname" value="twinaos" placeholder="Enter computer name">
+                        </div>
+                        
+                        <div class="password-strength">
+                            <div class="strength-bar">
+                                <div class="strength-fill" id="strength-fill"></div>
+                            </div>
+                            <span id="strength-text">Enter a password</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Summary Step -->
+            <div id="step-summary" class="step">
+                <div class="step-content">
+                    <h2><i class="fas fa-check-circle"></i> Installation Summary</h2>
+                    <div class="summary-content">
+                        <div class="summary-section">
+                            <h3><i class="fas fa-globe"></i> Localization</h3>
+                            <div class="summary-item">
+                                <span>Language:</span>
+                                <span id="summary-language">English</span>
+                            </div>
+                            <div class="summary-item">
+                                <span>Keyboard:</span>
+                                <span id="summary-keyboard">US</span>
+                            </div>
+                            <div class="summary-item">
+                                <span>Timezone:</span>
+                                <span id="summary-timezone">UTC</span>
+                            </div>
+                        </div>
+                        
+                        <div class="summary-section">
+                            <h3><i class="fas fa-wifi"></i> Network</h3>
+                            <div class="summary-item">
+                                <span>Connection:</span>
+                                <span id="summary-network">Not configured</span>
+                            </div>
+                        </div>
+                        
+                        <div class="summary-section">
+                            <h3><i class="fas fa-hdd"></i> Storage</h3>
+                            <div class="summary-item">
+                                <span>Target Disk:</span>
+                                <span id="summary-disk">None selected</span>
+                            </div>
+                            <div class="summary-item">
+                                <span>Partitioning:</span>
+                                <span id="summary-partitioning">Automatic</span>
+                            </div>
+                        </div>
+                        
+                        <div class="summary-section">
+                            <h3><i class="fas fa-user"></i> User Account</h3>
+                            <div class="summary-item">
+                                <span>Full Name:</span>
+                                <span id="summary-fullname">-</span>
+                            </div>
+                            <div class="summary-item">
+                                <span>Username:</span>
+                                <span id="summary-username">-</span>
+                            </div>
+                            <div class="summary-item">
+                                <span>Computer Name:</span>
+                                <span id="summary-hostname">twinaos</span>
+                            </div>
+                        </div>
+                        
+                        <div class="warning-box">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <strong>Warning:</strong> This will erase all data on the selected disk and install TwinaOS.
+                            Make sure you have backed up any important data.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Installation Progress Step -->
+            <div id="step-progress" class="step">
+                <div class="step-content">
+                    <h2><i class="fas fa-download"></i> Installing TwinaOS</h2>
+                    <div class="progress-content">
+                        <div class="progress-animation">
+                            <div class="progress-circle">
+                                <svg class="progress-ring" width="120" height="120">
+                                    <circle class="progress-ring-circle" stroke="currentColor" stroke-width="4" 
+                                            fill="transparent" r="52" cx="60" cy="60"/>
+                                </svg>
+                                <div class="progress-percentage" id="progress-percentage">0%</div>
+                            </div>
+                        </div>
+                        
+                        <div class="progress-info">
+                            <div class="progress-message" id="progress-message">Preparing installation...</div>
+                            <div class="progress-bar">
+                                <div class="progress-fill" id="progress-fill"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="installation-steps">
+                            <div class="install-step" id="step-partition">
+                                <i class="fas fa-circle-notch fa-spin"></i>
+                                <span>Partitioning disk</span>
+                            </div>
+                            <div class="install-step" id="step-system">
+                                <i class="fas fa-circle"></i>
+                                <span>Installing base system</span>
+                            </div>
+                            <div class="install-step" id="step-user-create">
+                                <i class="fas fa-circle"></i>
+                                <span>Creating user account</span>
+                            </div>
+                            <div class="install-step" id="step-finalize">
+                                <i class="fas fa-circle"></i>
+                                <span>Finalizing installation</span>
+                            </div>
+                        </div>
+                        
+                        <div class="progress-details">
+                            <button id="show-details" class="details-toggle">
+                                <i class="fas fa-chevron-down"></i> Show Details
+                            </button>
+                            <div id="install-log" class="install-log">
+                                <!-- Installation logs will appear here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Complete Step -->
+            <div id="step-complete" class="step">
+                <div class="step-content">
+                    <div class="complete-content">
+                        <div class="success-animation">
+                            <i class="fas fa-check-circle success-icon"></i>
+                        </div>
+                        
+                        <h2>Installation Complete!</h2>
+                        <p>TwinaOS has been successfully installed on your device.</p>
+                        
+                        <div class="next-steps">
+                            <h3>What's Next?</h3>
+                            <ul>
+                                <li><i class="fas fa-check"></i> Remove the installation media</li>
+                                <li><i class="fas fa-check"></i> Restart your device</li>
+                                <li><i class="fas fa-check"></i> Enjoy TwinaOS!</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="reboot-options">
+                            <button id="reboot-now" class="btn btn-primary btn-large">
+                                <i class="fas fa-power-off"></i> Reboot Now
+                            </button>
+                            <button id="reboot-later" class="btn btn-secondary">
+                                <i class="fas fa-clock"></i> Reboot Later
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Navigation -->
+        <nav class="installer-nav">
+            <button id="nav-back" class="nav-btn" disabled>
+                <i class="fas fa-chevron-left"></i> Back
+            </button>
+            <button id="nav-next" class="nav-btn nav-primary">
+                Next <i class="fas fa-chevron-right"></i>
+            </button>
+        </nav>
+
+        <!-- WiFi Password Modal -->
+        <div id="wifi-modal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Connect to WiFi</h3>
+                    <button class="modal-close" onclick="closeWifiModal()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="wifi-info">
+                        <i class="fas fa-wifi"></i>
+                        <span id="wifi-modal-ssid">Network Name</span>
+                    </div>
+                    <div class="form-group">
+                        <label for="wifi-password">Password</label>
+                        <div class="password-input">
+                            <input type="password" id="wifi-password" placeholder="Enter WiFi password">
+                            <button type="button" class="password-toggle" onclick="togglePassword('wifi-password')">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" onclick="closeWifiModal()">Cancel</button>
+                    <button class="btn btn-primary" onclick="connectWifi()">Connect</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Debug Panel -->
+        <div id="debug-panel" class="debug-panel">
+            <div class="debug-header">
+                <h3><i class="fas fa-bug"></i> Debug Mode</h3>
+                <button onclick="toggleDebug()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="debug-content">
+                <div class="debug-section">
+                    <h4>System Information</h4>
+                    <div id="debug-system"></div>
+                </div>
+                <div class="debug-section">
+                    <h4>Installation Logs</h4>
+                    <div id="debug-logs"></div>
+                </div>
+                <div class="debug-section">
+                    <h4>Terminal Access</h4>
+                    <button class="btn btn-secondary" onclick="openTerminal()">
+                        <i class="fas fa-terminal"></i> Open Terminal
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay">
+        <div class="loading-spinner">
+            <i class="fas fa-spinner fa-spin"></i>
+        </div>
+        <div class="loading-text">Loading...</div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.0/socket.io.js"></script>
+    <script src="{{ url_for('static', filename='js/installer.js') }}"></script>
+</body>
+</html>
