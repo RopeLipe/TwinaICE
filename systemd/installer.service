@@ -8,6 +8,7 @@ Type=simple
 User=installer
 WorkingDirectory=/opt/twinaos
 Environment=PYTHONPATH=/opt/twinaos
+Environment=DISPLAY=:0
 ExecStart=/usr/bin/python3 /opt/twinaos/app.py
 Restart=always
 RestartSec=3

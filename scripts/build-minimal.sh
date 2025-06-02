@@ -168,6 +168,30 @@ create_hooks() {
     
     mkdir -p "config/hooks/live"
     
+    # Bootloader configuration hook
+    cat > "config/hooks/live/0005-configure-bootloader.hook.binary" << 'EOF'
+#!/bin/bash
+
+# Configure isolinux/syslinux for silent auto-boot
+if [ -d binary/isolinux ]; then
+    sed -i 's/timeout .*/timeout 0/' binary/isolinux/isolinux.cfg || true
+    sed -i 's/prompt .*/prompt 0/' binary/isolinux/isolinux.cfg || true
+    sed -i '/^ui /d' binary/isolinux/isolinux.cfg || true
+    sed -i '/^menu /d' binary/isolinux/isolinux.cfg || true
+    sed -i 's/^default .*/default live/' binary/isolinux/isolinux.cfg || true
+fi
+
+if [ -d binary/syslinux ]; then
+    sed -i 's/timeout .*/timeout 0/' binary/syslinux/syslinux.cfg || true
+    sed -i 's/prompt .*/prompt 0/' binary/syslinux/syslinux.cfg || true
+    sed -i '/^ui /d' binary/syslinux/syslinux.cfg || true
+    sed -i '/^menu /d' binary/syslinux/syslinux.cfg || true
+    sed -i 's/^default .*/default live/' binary/syslinux/syslinux.cfg || true
+fi
+EOF
+
+    chmod +x "config/hooks/live/0005-configure-bootloader.hook.binary"
+
     # Simple installer setup hook
     cat > "config/hooks/live/9999-installer-setup.hook.chroot" << 'EOF'
 #!/bin/bash
@@ -187,8 +211,45 @@ ExecStart=
 ExecStart=-/sbin/agetty --autologin installer --noclear %I $TERM
 EOL
 
-# Enable installer service
+# Setup X initialization
+cat > /home/installer/.xinitrc << 'EOL'
+#!/bin/bash
+exec openbox-session
+EOL
+chmod +x /home/installer/.xinitrc
+
+# Setup Openbox autostart
+mkdir -p /home/installer/.config/openbox
+cat > /home/installer/.config/openbox/autostart << 'EOL'
+# Wait for network and start browser
+(sleep 3 && chromium --kiosk --no-sandbox --disable-dev-shm-usage http://localhost:5000) &
+EOL
+
+# Create GUI startup service
+cat > /etc/systemd/system/installer-gui.service << 'EOL'
+[Unit]
+Description=Start X11 for installer
+After=multi-user.target
+
+[Service]
+Type=simple
+User=installer
+PAMName=login
+TTYPath=/dev/tty1
+Environment="HOME=/home/installer"
+ExecStart=/usr/bin/startx
+Restart=on-failure
+
+[Install]
+WantedBy=graphical.target
+EOL
+
+# Enable services
 systemctl enable installer.service
+systemctl enable installer-gui.service
+
+# Set ownership
+chown -R installer:installer /home/installer
 
 # Setup Plymouth theme
 plymouth-set-default-theme twinaos

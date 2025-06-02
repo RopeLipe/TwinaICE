@@ -85,7 +85,7 @@ setup_live_config() {
         --architecture "$ARCH" \
         --archive-areas "main contrib non-free non-free-firmware" \
         --binary-images iso-hybrid \
-        --bootappend-live "boot=live components quiet splash" \
+        --bootappend-live "boot=live components quiet splash noautologin" \
         --bootloaders syslinux \
         --debian-installer none \
         --iso-application "TwinaOS Installer" \
@@ -105,6 +105,7 @@ copy_installer() {
     mkdir -p "config/includes.chroot/opt/twinaos"
     mkdir -p "config/includes.chroot/etc/systemd/system"
     mkdir -p "config/includes.chroot/usr/share/plymouth/themes/twinaos"
+    mkdir -p "config/includes.chroot/usr/local/bin"
     
     # Copy installer application
     cp -r ../installer/* "config/includes.chroot/opt/twinaos/"
@@ -114,6 +115,12 @@ copy_installer() {
     
     # Copy Plymouth theme
     cp -r ../splash/* "config/includes.chroot/usr/share/plymouth/themes/twinaos/"
+    
+    # Copy X session script if it exists
+    if [[ -f ../scripts/installer-x-session.sh ]]; then
+        cp ../scripts/installer-x-session.sh "config/includes.chroot/usr/local/bin/"
+        chmod +x "config/includes.chroot/usr/local/bin/installer-x-session.sh"
+    fi
     
     success "Installer files copied"
 }
@@ -189,6 +196,48 @@ create_hooks() {
     
     mkdir -p "config/hooks/live"
     
+    # Hook to configure bootloader for silent boot
+    cat > "config/hooks/live/0005-configure-bootloader.hook.binary" << 'EOF'
+#!/bin/bash
+
+# Configure isolinux/syslinux for silent auto-boot
+if [ -d binary/isolinux ]; then
+    # Set timeout to 0 for immediate boot
+    sed -i 's/timeout .*/timeout 0/' binary/isolinux/isolinux.cfg || true
+    sed -i 's/prompt .*/prompt 0/' binary/isolinux/isolinux.cfg || true
+    
+    # Remove menu display
+    sed -i '/^ui /d' binary/isolinux/isolinux.cfg || true
+    sed -i '/^menu /d' binary/isolinux/isolinux.cfg || true
+    
+    # Set default label
+    sed -i 's/^default .*/default live/' binary/isolinux/isolinux.cfg || true
+fi
+
+# Configure syslinux for silent auto-boot
+if [ -d binary/syslinux ]; then
+    sed -i 's/timeout .*/timeout 0/' binary/syslinux/syslinux.cfg || true
+    sed -i 's/prompt .*/prompt 0/' binary/syslinux/syslinux.cfg || true
+    sed -i '/^ui /d' binary/syslinux/syslinux.cfg || true
+    sed -i '/^menu /d' binary/syslinux/syslinux.cfg || true
+    sed -i 's/^default .*/default live/' binary/syslinux/syslinux.cfg || true
+fi
+
+# Configure GRUB for silent auto-boot (if using GRUB)
+if [ -d binary/boot/grub ]; then
+    cat > binary/boot/grub/grub.cfg << 'GRUBEOF'
+set default=0
+set timeout=0
+menuentry "TwinaOS Installer" {
+    linux /live/vmlinuz boot=live components quiet splash
+    initrd /live/initrd.img
+}
+GRUBEOF
+fi
+EOF
+
+    chmod +x "config/hooks/live/0005-configure-bootloader.hook.binary"
+
     # Hook to setup installer service
     cat > "config/hooks/live/0010-setup-installer.hook.chroot" << 'EOF'
 #!/bin/bash
@@ -218,15 +267,51 @@ ExecStart=
 ExecStart=-/sbin/agetty --autologin installer --noclear %I $TERM
 EOFINNER
 
-# Setup auto-start for installer
-mkdir -p /home/installer/.config/openbox
-cat > /home/installer/.config/openbox/autostart << 'EOFINNER'
-# Start installer web browser
-sleep 5
-chromium --kiosk --no-sandbox --disable-dev-shm-usage http://localhost:5000 &
+# Setup auto-start for installer with proper X session
+mkdir -p /home/installer
+cat > /home/installer/.xinitrc << 'EOFINNER'
+#!/bin/bash
+# Use the installer X session script if available
+if [ -x /usr/local/bin/installer-x-session.sh ]; then
+    exec /usr/local/bin/installer-x-session.sh
+else
+    # Fallback to basic openbox session
+    exec openbox-session
+fi
 EOFINNER
 
-chown -R installer:installer /home/installer/.config
+chmod +x /home/installer/.xinitrc
+
+# Setup Openbox autostart
+mkdir -p /home/installer/.config/openbox
+cat > /home/installer/.config/openbox/autostart << 'EOFINNER'
+# Start installer web browser after X is ready
+(sleep 3 && chromium --kiosk --no-sandbox --disable-dev-shm-usage http://localhost:5000) &
+EOFINNER
+
+# Create systemd service to start X automatically after login
+cat > /etc/systemd/system/installer-gui.service << 'EOFINNER'
+[Unit]
+Description=Start X11 for installer
+After=multi-user.target
+
+[Service]
+Type=simple
+User=installer
+PAMName=login
+TTYPath=/dev/tty1
+Environment="HOME=/home/installer"
+ExecStart=/usr/bin/startx
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=graphical.target
+EOFINNER
+
+systemctl enable installer-gui.service
+
+chown -R installer:installer /home/installer
 EOF
 
     chmod +x "config/hooks/live/0010-setup-installer.hook.chroot"
