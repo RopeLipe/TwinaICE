@@ -164,8 +164,11 @@ grub-efi-amd64-bin
 plymouth
 plymouth-themes
 xserver-xorg-core
-chromium
+xserver-xorg-video-all
+xserver-xorg-input-all
+xinit
 openbox
+chromium
 
 # Utilities
 curl
@@ -267,17 +270,35 @@ ExecStart=
 ExecStart=-/sbin/agetty --autologin installer --noclear %I $TERM
 EOFINNER
 
+# Create bash profile to auto-start X
+cat > /home/installer/.bash_profile << 'EOFINNER'
+# Auto-start X if on tty1 and X not running
+if [[ -z "$DISPLAY" ]] && [[ $(tty) = /dev/tty1 ]]; then
+    exec startx
+fi
+EOFINNER
+
 # Setup auto-start for installer with proper X session
 mkdir -p /home/installer
 cat > /home/installer/.xinitrc << 'EOFINNER'
 #!/bin/bash
-# Use the installer X session script if available
-if [ -x /usr/local/bin/installer-x-session.sh ]; then
-    exec /usr/local/bin/installer-x-session.sh
-else
-    # Fallback to basic openbox session
-    exec openbox-session
-fi
+# Start the installer X session
+
+# Set up environment
+export DISPLAY=:0
+export HOME=/home/installer
+
+# Start window manager
+openbox-session &
+
+# Wait for openbox to be ready
+sleep 2
+
+# Start the installer browser
+chromium --kiosk --no-sandbox --disable-dev-shm-usage --disable-gpu-sandbox http://localhost:5000 &
+
+# Keep X running
+wait
 EOFINNER
 
 chmod +x /home/installer/.xinitrc
@@ -289,29 +310,10 @@ cat > /home/installer/.config/openbox/autostart << 'EOFINNER'
 (sleep 3 && chromium --kiosk --no-sandbox --disable-dev-shm-usage http://localhost:5000) &
 EOFINNER
 
-# Create systemd service to start X automatically after login
-cat > /etc/systemd/system/installer-gui.service << 'EOFINNER'
-[Unit]
-Description=Start X11 for installer
-After=multi-user.target
-
-[Service]
-Type=simple
-User=installer
-PAMName=login
-TTYPath=/dev/tty1
-Environment="HOME=/home/installer"
-ExecStart=/usr/bin/startx
-Restart=on-failure
-RestartSec=5
-
-[Install]
-WantedBy=graphical.target
-EOFINNER
-
-systemctl enable installer-gui.service
-
+# Set proper permissions
 chown -R installer:installer /home/installer
+chmod 755 /home/installer
+chmod 644 /home/installer/.bash_profile
 EOF
 
     chmod +x "config/hooks/live/0010-setup-installer.hook.chroot"

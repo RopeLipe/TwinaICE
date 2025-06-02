@@ -150,6 +150,9 @@ dosfstools
 # Graphics and boot
 plymouth
 xserver-xorg-core
+xserver-xorg-video-all
+xserver-xorg-input-all
+xinit
 openbox
 
 # Utilities
@@ -211,10 +214,22 @@ ExecStart=
 ExecStart=-/sbin/agetty --autologin installer --noclear %I $TERM
 EOL
 
+# Create bash profile for auto X start
+cat > /home/installer/.bash_profile << 'EOL'
+# Auto-start X if on tty1
+if [[ -z "$DISPLAY" ]] && [[ $(tty) = /dev/tty1 ]]; then
+    exec startx
+fi
+EOL
+
 # Setup X initialization
 cat > /home/installer/.xinitrc << 'EOL'
 #!/bin/bash
-exec openbox-session
+# Start openbox and chromium
+openbox-session &
+sleep 2
+chromium --kiosk --no-sandbox --disable-dev-shm-usage http://localhost:5000 &
+wait
 EOL
 chmod +x /home/installer/.xinitrc
 
@@ -225,31 +240,13 @@ cat > /home/installer/.config/openbox/autostart << 'EOL'
 (sleep 3 && chromium --kiosk --no-sandbox --disable-dev-shm-usage http://localhost:5000) &
 EOL
 
-# Create GUI startup service
-cat > /etc/systemd/system/installer-gui.service << 'EOL'
-[Unit]
-Description=Start X11 for installer
-After=multi-user.target
-
-[Service]
-Type=simple
-User=installer
-PAMName=login
-TTYPath=/dev/tty1
-Environment="HOME=/home/installer"
-ExecStart=/usr/bin/startx
-Restart=on-failure
-
-[Install]
-WantedBy=graphical.target
-EOL
-
-# Enable services
+# Enable installer service only
 systemctl enable installer.service
-systemctl enable installer-gui.service
 
-# Set ownership
+# Set ownership and permissions
 chown -R installer:installer /home/installer
+chmod 755 /home/installer
+chmod 644 /home/installer/.bash_profile
 
 # Setup Plymouth theme
 plymouth-set-default-theme twinaos
