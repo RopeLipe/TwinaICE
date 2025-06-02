@@ -1,14 +1,14 @@
 #!/bin/bash
 #
-# TwinaOS ISO Builder
-# Builds a custom Debian Live Installer ISO for tablet devices
+# TwinaOS ISO Builder - Minimal Version
+# Builds a custom Debian Live Installer ISO without firmware packages
 #
 
 set -e
 
 # Configuration
 WORK_DIR="$(pwd)/build"
-ISO_NAME="twinaos-installer"
+ISO_NAME="twinaos-installer-minimal"
 DEBIAN_VERSION="bookworm"
 ARCH="amd64"
 
@@ -73,28 +73,28 @@ clean_build() {
     success "Build directory cleaned"
 }
 
-# Setup live-build configuration
+# Setup live-build configuration (minimal)
 setup_live_config() {
-    log "Setting up live-build configuration..."
+    log "Setting up minimal live-build configuration..."
     
     cd "$WORK_DIR"
     
-    # Initialize live-build
+    # Initialize live-build with main repository only
     lb config \
         --distribution "$DEBIAN_VERSION" \
         --architecture "$ARCH" \
-        --archive-areas "main contrib non-free non-free-firmware" \
+        --archive-areas "main" \
         --binary-images iso-hybrid \
         --bootappend-live "boot=live components quiet splash" \
         --bootloaders syslinux \
         --debian-installer none \
-        --iso-application "TwinaOS Installer" \
+        --iso-application "TwinaOS Installer (Minimal)" \
         --iso-publisher "TwinaOS Project" \
-        --iso-volume "TwinaOS-$(date +%Y%m%d)" \
+        --iso-volume "TwinaOS-Minimal-$(date +%Y%m%d)" \
         --memtest none \
         --win32-loader false
     
-    success "Live-build configuration created"
+    success "Minimal live-build configuration created"
 }
 
 # Copy installer files
@@ -118,147 +118,121 @@ copy_installer() {
     success "Installer files copied"
 }
 
-# Create package lists
+# Create minimal package lists
 create_package_lists() {
-    log "Creating package lists..."
+    log "Creating minimal package lists..."
     
     mkdir -p "config/package-lists"
     
-    # Base packages
+    # Minimal packages only
     cat > "config/package-lists/base.list.chroot" << 'EOF'
 # Base system
 live-boot
 live-config
 live-config-systemd
 
-# Network and WiFi
+# Network (basic)
 network-manager
 wpasupplicant
-wireless-tools
 
 # Python and web server
 python3
 python3-pip
 python3-venv
-python3-flask
-python3-requests
-python3-psutil
 
-# Installation tools
+# Installation tools (essential)
 debootstrap
 gdisk
 parted
 e2fsprogs
 dosfstools
-grub-pc-bin
-grub-efi-amd64-bin
 
 # Graphics and boot
 plymouth
-plymouth-themes
 xserver-xorg-core
-chromium
 openbox
 
 # Utilities
 curl
 wget
-rsync
 sudo
 systemd
 EOF
 
-    # Create firmware package list (separate to handle non-free)
-    cat > "config/package-lists/firmware.list.chroot" << 'EOF'
-# Hardware firmware (requires non-free repositories)
-firmware-linux-free
-firmware-misc-nonfree
-firmware-realtek
-firmware-iwlwifi
-firmware-atheros
-intel-microcode
-amd64-microcode
-EOF
-
-    success "Package lists created"
+    success "Minimal package lists created"
 }
 
-# Create hooks
+# Create simplified hooks
 create_hooks() {
-    log "Creating live-build hooks..."
+    log "Creating simplified hooks..."
     
     mkdir -p "config/hooks/live"
     
-    # Hook to setup installer service
-    cat > "config/hooks/live/0010-setup-installer.hook.chroot" << 'EOF'
+    # Simple installer setup hook
+    cat > "config/hooks/live/9999-installer-setup.hook.chroot" << 'EOF'
 #!/bin/bash
+
+# Install Python packages
+pip3 install flask flask-socketio psutil requests
+
+# Create installer user
+useradd -m -s /bin/bash -G sudo,netdev installer
+echo 'installer:installer' | chpasswd
+
+# Enable auto-login
+mkdir -p /etc/systemd/system/getty@tty1.service.d
+cat > /etc/systemd/system/getty@tty1.service.d/override.conf << 'EOL'
+[Service]
+ExecStart=
+ExecStart=-/sbin/agetty --autologin installer --noclear %I $TERM
+EOL
 
 # Enable installer service
 systemctl enable installer.service
 
-# Install Python dependencies
-pip3 install flask flask-socketio psutil
-
 # Setup Plymouth theme
-update-alternatives --install /usr/share/plymouth/themes/default.plymouth default.plymouth /usr/share/plymouth/themes/twinaos/twinaos.plymouth 100
-update-alternatives --set default.plymouth /usr/share/plymouth/themes/twinaos/twinaos.plymouth
-
-# Configure Plymouth
-echo 'GRUB_CMDLINE_LINUX_DEFAULT="quiet splash"' >> /etc/default/grub
-
-# Create installer user
-useradd -m -s /bin/bash -G sudo installer
-echo "installer:installer" | chpasswd
-
-# Auto-login for installer user
-mkdir -p /etc/systemd/system/getty@tty1.service.d
-cat > /etc/systemd/system/getty@tty1.service.d/override.conf << 'EOFINNER'
-[Service]
-ExecStart=
-ExecStart=-/sbin/agetty --autologin installer --noclear %I $TERM
-EOFINNER
-
-# Setup auto-start for installer
-mkdir -p /home/installer/.config/openbox
-cat > /home/installer/.config/openbox/autostart << 'EOFINNER'
-# Start installer web browser
-sleep 5
-chromium --kiosk --no-sandbox --disable-dev-shm-usage http://localhost:5000 &
-EOFINNER
-
-chown -R installer:installer /home/installer/.config
+plymouth-set-default-theme twinaos
+update-initramfs -u
 EOF
 
-    chmod +x "config/hooks/live/0010-setup-installer.hook.chroot"
+    chmod +x "config/hooks/live/9999-installer-setup.hook.chroot"
     
-    success "Hooks created"
+    success "Simplified hooks created"
 }
 
-# Build the live system
-build_live() {
-    log "Building live system (this may take a while)..."
+# Build the ISO
+build_iso() {
+    log "Building minimal ISO image..."
     
-    cd "$WORK_DIR"
-    sudo lb build
+    # Set environment variables for live-build
+    export LB_DISTRIBUTION="$DEBIAN_VERSION"
+    export LB_ARCHITECTURE="$ARCH"
     
-    success "Live system built successfully"
-}
-
-# Copy ISO to output
-copy_iso() {
-    log "Copying ISO to output..."
+    # Build with verbose output
+    sudo lb build 2>&1 | tee build.log
     
-    if [[ -f "$WORK_DIR/live-image-${ARCH}.hybrid.iso" ]]; then
-        cp "$WORK_DIR/live-image-${ARCH}.hybrid.iso" "../${ISO_NAME}-$(date +%Y%m%d).iso"
-        success "ISO created: ${ISO_NAME}-$(date +%Y%m%d).iso"
+    if [[ -f "live-image-$ARCH.hybrid.iso" ]]; then
+        # Rename the ISO
+        local iso_filename="${ISO_NAME}-$(date +%Y%m%d).iso"
+        mv "live-image-$ARCH.hybrid.iso" "../$iso_filename"
+        success "ISO built successfully: $iso_filename"
+        
+        # Generate checksums
+        cd ..
+        sha256sum "$iso_filename" > "$iso_filename.sha256"
+        log "SHA256: $(cat "$iso_filename.sha256")"
+        
+        # Show file info
+        log "ISO size: $(du -h "$iso_filename" | cut -f1)"
+        
     else
-        error "ISO file not found after build"
+        error "ISO build failed. Check build.log for details."
     fi
 }
 
-# Main build process
+# Main build function
 main() {
-    log "Starting TwinaOS ISO build process..."
+    log "Starting TwinaOS minimal ISO build..."
     
     check_root
     check_dependencies
@@ -267,13 +241,35 @@ main() {
     copy_installer
     create_package_lists
     create_hooks
-    build_live
-    copy_iso
+    build_iso
     
-    success "TwinaOS ISO build completed successfully!"
-    log "ISO file: ${ISO_NAME}-$(date +%Y%m%d).iso"
-    log "You can now test the ISO in a virtual machine"
+    success "Build completed successfully!"
+    echo
+    log "Next steps:"
+    echo "1. Test the ISO: ./scripts/test-qemu.sh $ISO_NAME-$(date +%Y%m%d).iso"
+    echo "2. If successful, try the full build with firmware"
+    echo "3. Boot on real hardware to test"
 }
+
+# Script help
+if [[ "$1" == "--help" || "$1" == "-h" ]]; then
+    echo "TwinaOS Minimal ISO Builder"
+    echo
+    echo "This script builds a minimal version of TwinaOS without firmware packages"
+    echo "to avoid repository issues. Use this if the main build fails."
+    echo
+    echo "Usage: $0"
+    echo
+    echo "The minimal build includes:"
+    echo "- Basic Debian live system"
+    echo "- TwinaOS installer"
+    echo "- Essential drivers only"
+    echo "- No proprietary firmware"
+    echo
+    echo "After successful minimal build, you can try the full version."
+    echo
+    exit 0
+fi
 
 # Run main function
 main "$@"
